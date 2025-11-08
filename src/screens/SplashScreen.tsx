@@ -10,7 +10,7 @@ export default function SplashScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   useEffect(() => {
-    const t = setTimeout(() => navigation.replace("Home"), 2000);
+    const t = setTimeout(() => navigation.replace("Actions"), 2000);
     return () => clearTimeout(t);
   }, [navigation]);
 
