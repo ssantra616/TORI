@@ -1,6 +1,7 @@
-## Will have the VR 
-## the voice over 
-## the map 
+// Will have the VR 
+// the voice over 
+// the map 
+
 import { View, Text, StyleSheet } from "react-native";
 export default function TourScreen() {
   return (
