@@ -10,16 +10,18 @@ import {
   Image,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import * as Speech from "expo-speech";
 import { Audio } from "expo-av";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as Location from "expo-location"; // NEW: Import Location library
 
+// ... (API keys and helper functions are unchanged)
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 const ELEVEN_API_KEY = process.env.EXPO_PUBLIC_ELEVENLABS_API_KEY;
 const ELEVEN_VOICE_ID = process.env.EXPO_PUBLIC_ELEVENLABS_VOICE_ID;
 
-// ... (your existing helper functions, no changes needed)
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
     const bytes = new Uint8Array(buffer);
     let binary = "";
@@ -51,22 +53,42 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
     return output;
 }
 
-
 export default function ToriMain() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<
     { from: "user" | "tori"; text: string }[]
   >([]);
   const [loading, setLoading] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+
+  // NEW: State for location data and errors
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [locationErrorMsg, setLocationErrorMsg] = useState<string | null>(null);
+
 
   useEffect(() => {
-    if (Platform.OS !== "web") {
-      requestPermission();
-    }
+    // NEW: Asynchronous function to handle permissions and fetching
+    (async () => {
+      // Request camera permission
+      if (Platform.OS !== "web") {
+        await requestCameraPermission();
+      }
+
+      // Request location permission
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationErrorMsg('Permission to access location was denied');
+        return;
+      }
+
+      // Fetch the location
+      let currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
+    })();
   }, []);
 
-  // ... (handleSend, askTori, pushToriMessage, speakTori functions are unchanged)
+
+  // ... (handleSend is unchanged)
    async function handleSend() {
     const text = input.trim();
     if (!text || loading) return;
@@ -76,8 +98,9 @@ export default function ToriMain() {
     await askTori(text);
   }
 
+  // MODIFIED: askTori now includes location context
   async function askTori(userText: string) {
-     if (!GEMINI_API_KEY) {
+    if (!GEMINI_API_KEY) {
       const fallback =
         "I’m almost ready, but my AI brain isn’t wired up yet (missing GEMINI_API_KEY).";
       pushToriMessage(fallback);
@@ -87,17 +110,23 @@ export default function ToriMain() {
 
     setLoading(true);
 
+    // NEW: Add location context to the system prompt if available
+    const locationContext = location
+      ? `The user's current location is latitude ${location.coords.latitude} and longitude ${location.coords.longitude}. Use this as a frame of reference for any location-based questions.`
+      : "The user's location is not available.";
+
     const systemInstruction = `
 You are Tori, a communal, friendly AI tour companion.
 You are not a personal assistant; you are a shared presence people can "bump into".
 Tone: warm, playful, concise (1–3 sentences), vivid.
 You help people explore spaces, notice interesting details, feel welcome, and imagine ways to connect.
-You can be used on campuses, cities, events—never locked to one school.
+${locationContext} 
 Assume others might also be listening/nearby; occasionally use inclusive language ("you all", "anyone nearby").
 Avoid heavy topics; keep it light, supportive, curious.
 `.trim();
 
     try {
+      // ... (The rest of the fetch call is unchanged)
       const res = await fetch(
         "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent",
         {
@@ -150,6 +179,7 @@ Avoid heavy topics; keep it light, supportive, curious.
     }
   }
 
+  // ... (pushToriMessage and speakTori are unchanged)
   function pushToriMessage(text: string) {
     setMessages((prev) => [...prev, { from: "tori", text }]);
   }
@@ -205,18 +235,18 @@ Avoid heavy topics; keep it light, supportive, curious.
     Speech.speak(text, { rate: 1.0, pitch: 1.02 });
   }
 
-  if (!permission) {
+  if (!cameraPermission) {
     return <View />;
   }
 
-  if (!permission.granted) {
+  if (!cameraPermission.granted) {
     // ... (permission container is unchanged)
-    return (
+     return (
       <View style={styles.permissionContainer}>
         <Text style={{ textAlign: "center", color: "white" }}>
           We need your permission to show the camera
         </Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.sendBtn}>
+        <TouchableOpacity onPress={requestCameraPermission} style={styles.sendBtn}>
           <Text style={styles.sendLabel}>Grant Permission</Text>
         </TouchableOpacity>
       </View>
@@ -227,83 +257,83 @@ Avoid heavy topics; keep it light, supportive, curious.
     <View style={{ flex: 1 }}>
       <CameraView style={StyleSheet.absoluteFillObject} facing="back" />
 
-      <SafeAreaView style={styles.container}>
-        {/* Header (unchanged) */}
-        <View style={styles.header}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <SafeAreaView style={styles.container}>
+          {/* MODIFIED: Header to show location status */}
+          <View style={styles.header}>
             <Image
-                source={require("../../assets/tori_logo.png")}
-                style={styles.logo}
-                resizeMode="contain"
+              source={require("../../assets/tori_logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
             />
             <View>
-                <Text style={styles.title}>Tori</Text>
-                <Text style={styles.subtitle}>Shared AI Tour Companion</Text>
-            </View>
-        </View>
-
-        {/* Body / Messages */}
-        <ScrollView
-          style={styles.messagesContainer}
-          contentContainerStyle={{ paddingBottom: 16 }}
-        >
-          {/* ----- ALL INFO BOXES REMOVED FROM HERE ----- */}
-
-          {/* MODIFIED: Use .slice(-2) to get only the last two messages */}
-          {messages.slice(-2).map((m, i) => (
-            <View
-              key={i}
-              style={[
-                styles.bubble,
-                m.from === "user"
-                  ? styles.userBubble
-                  : styles.toriBubble,
-              ]}
-            >
-              <Text style={styles.bubbleLabel}>
-                {m.from === "user" ? "You" : "Tori"}
+              <Text style={styles.title}>Tori</Text>
+              <Text style={styles.subtitle}>
+                {location ? `📍 Near You` : (locationErrorMsg || "Finding location...")}
               </Text>
-              <Text style={styles.bubbleText}>{m.text}</Text>
             </View>
-          ))}
+          </View>
 
-          {loading && (
-            <View style={[styles.bubble, styles.toriBubble]}>
-              <Text style={styles.bubbleLabel}>Tori</Text>
-              <Text style={styles.bubbleText}>Thinking with you…</Text>
-            </View>
-          )}
-        </ScrollView>
+          {/* Body and Input are unchanged */}
+          <ScrollView
+            style={styles.messagesContainer}
+            contentContainerStyle={{ paddingBottom: 16 }}
+          >
+            {messages.slice(-2).map((m, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.bubble,
+                  m.from === "user" ? styles.userBubble : styles.toriBubble,
+                ]}
+              >
+                <Text style={styles.bubbleLabel}>
+                  {m.from === "user" ? "You" : "Tori"}
+                </Text>
+                <Text style={styles.bubbleText}>{m.text}</Text>
+              </View>
+            ))}
+            {loading && (
+              <View style={[styles.bubble, styles.toriBubble]}>
+                <Text style={styles.bubbleLabel}>Tori</Text>
+                <Text style={styles.bubbleText}>Thinking with you…</Text>
+              </View>
+            )}
+          </ScrollView>
 
-        {/* Input (unchanged) */}
-        <View style={styles.inputRow}>
+          <View style={styles.inputRow}>
             <TextInput
-                value={input}
-                onChangeText={setInput}
-                placeholder="Ask Tori something..."
-                placeholderTextColor="#6B7280"
-                style={styles.input}
-                editable={!loading}
-                onSubmitEditing={handleSend}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Ask Tori something..."
+              placeholderTextColor="#9CA3AF"
+              style={styles.input}
+              editable={!loading}
+              onSubmitEditing={handleSend}
             />
             <TouchableOpacity
-                onPress={handleSend}
-                disabled={loading}
-                style={[styles.sendBtn, loading && styles.sendBtnDisabled]}
+              onPress={handleSend}
+              disabled={loading}
+              style={[styles.sendBtn, loading && styles.sendBtnDisabled]}
             >
-                {loading ? (
+              {loading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
+              ) : (
                 <Text style={styles.sendLabel}>Send</Text>
-                )}
+              )}
             </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+          </View>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
+// ... (Styles are unchanged)
 const styles = StyleSheet.create({
-  // ... (All styles are unchanged, except for the `intro` style, which is no longer used but can be safely removed)
   container: {
     flex: 1,
     backgroundColor: "transparent",
