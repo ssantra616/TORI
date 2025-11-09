@@ -19,6 +19,7 @@ import * as Location from "expo-location";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
+import { Image } from "react-native";
 
 export default function TourScreen() {
   const navigation =
@@ -150,7 +151,25 @@ export default function TourScreen() {
         </SafeAreaView>
       </View>
 
-      {/* Bottom card for query */}
+      {/* Bottom-right bot sticker (doesn't block touches) */}
+      <View style={styles.botWrapper} pointerEvents="none">
+        <Image
+        source={require("../../assets/Tori-visual.png")}
+        style={styles.botCorner}
+        />
+      </View>
+
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => alert("Hi! I’m Tori — your VR tour companion! 💜")}
+        style={styles.botWrapper}
+      >
+        <Image
+          source={require("../../assets/Tori-visual.png")}
+          style={styles.botCorner}
+        />
+      </TouchableOpacity>
+
         
 
       {/* Scrim + Drawer */}
@@ -289,4 +308,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+
+  botWrapper: {
+  position: "absolute",
+  right: 16,
+  bottom: 140, // adjust to float above your white card
+  zIndex: 25,
+  elevation: 10,
+  },
+  
+  botCorner: {
+  position: "absolute",
+  right: 16,
+  // keep it above the map but clear of the white bottom card
+  bottom: 140,               // tweak to sit just above your input card
+  width: 96,
+  height: 96,
+  resizeMode: "contain",
+  zIndex: 20,
+  // subtle lift
+  shadowColor: "#000",
+  shadowOpacity: 0.2,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 8,
+},
 });
