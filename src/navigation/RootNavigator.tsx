@@ -6,6 +6,7 @@ import TourScreen from "../screens/TourScreen";
 import PeopleScreen from "../screens/PeopleScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import ToriMain from "../screens/ToriMain";
+import ItineraryScreen from "../screens/ItineraryScreen";
 
 
 export type RootStackParamList = {
@@ -16,6 +17,7 @@ export type RootStackParamList = {
   People: undefined;
   Settings: undefined;
   ToriMain: undefined;
+  Itinerary: undefined; 
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -30,6 +32,9 @@ export default function RootNavigator() {
       <Stack.Screen name="People" component={PeopleScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="ToriMain" component={ToriMain} />
+      <Stack.Screen name="Itinerary" component={ItineraryScreen} options={{ animation: "slide_from_right" }} />
+
+
     </Stack.Navigator>
   );
 }

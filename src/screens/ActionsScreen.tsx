@@ -23,16 +23,9 @@ export default function ActionsScreen({ navigation }: Props) {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondary} onPress={() => navigation.navigate("ToriMain")}>
-          <Text style={styles.secondaryText}>See Tori</Text>
+          <Text style={styles.secondaryText}>Talk with Tori</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.secondary} onPress={() => navigation.navigate("People")}>
-          <Text style={styles.secondaryText}>Find People Nearby</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.link} onPress={() => navigation.navigate("Settings")}>
-          <Text style={styles.linkText}>Settings</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
