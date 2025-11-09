@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   View,
@@ -9,183 +9,92 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Platform,
 } from "react-native";
-import * as Location from "expo-location";
 import * as Speech from "expo-speech";
+import { Audio } from "expo-av";
+import { CameraView, useCameraPermissions } from "expo-camera";
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const ELEVEN_API_KEY = process.env.EXPO_PUBLIC_ELEVENLABS_API_KEY;
+const ELEVEN_VOICE_ID = process.env.EXPO_PUBLIC_ELEVENLABS_VOICE_ID;
 
-// Haversine distance in meters
-function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371000;
-  const toRad = (x: number) => (x * Math.PI) / 180;
+// ... (your existing helper functions, no changes needed)
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
 
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-
-  const sinDLat = Math.sin(dLat / 2);
-  const sinDLng = Math.sin(dLng / 2);
-
-  const h =
-    sinDLat * sinDLat +
-    Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
-
-  return 2 * R * Math.asin(Math.sqrt(h));
+    if (typeof btoa !== "undefined") {
+        return btoa(binary);
+    }
+    const chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+    let output = "";
+    let i = 0;
+    while (i < binary.length) {
+        const c1 = binary.charCodeAt(i++);
+        const c2 = binary.charCodeAt(i++);
+        const c3 = binary.charCodeAt(i++);
+        const e1 = c1 >> 2;
+        const e2 = ((c1 & 3) << 4) | (c2 >> 4);
+        const e3 = isNaN(c2) ? 64 : ((c2 & 15) << 2) | (c3 >> 6);
+        const e4 = isNaN(c2) || isNaN(c3) ? 64 : c3 & 63;
+        output +=
+        chars.charAt(e1) +
+        chars.charAt(e2) +
+        chars.charAt(e3) +
+        chars.charAt(e4);
+    }
+    return output;
 }
 
-type Stop = {
-  id: string;
-  name: string;
-  description: string;
-  lat: number;
-  lng: number;
-};
 
 export default function ToriMain() {
   const [input, setInput] = useState("");
-  const [lastUser, setLastUser] = useState<string | null>(null);
-  const [toriReply, setToriReply] = useState<string | null>(null);
+  const [messages, setMessages] = useState<
+    { from: "user" | "tori"; text: string }[]
+  >([]);
   const [loading, setLoading] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
 
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [stops, setStops] = useState<Stop[]>([]);
-  const [visitedStops, setVisitedStops] = useState<Record<string, boolean>>({});
-
-  // 🔹 1) Get location + create demo stops near user
   useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          console.warn("Location permission not granted, using demo path.");
-          // Demo-only fallback
-          setStops([
-            {
-              id: "demo-1",
-              name: "Demo Spot",
-              description: "Example location to show how Tori reacts.",
-              lat: 0,
-              lng: 0,
-            },
-          ]);
-          return;
-        }
-
-        const pos = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const here = { lat, lng };
-        setUserLocation(here);
-
-        // Simple 3-stop path around the user
-        const demoStops: Stop[] = [
-          {
-            id: "spot-1",
-            name: "Starting Point",
-            description: "A good first place to pause and notice your surroundings.",
-            lat: lat + 0.0005,
-            lng,
-          },
-          {
-            id: "spot-2",
-            name: "Lookout",
-            description: "A nearby point where Tori might point something out.",
-            lat,
-            lng: lng + 0.0005,
-          },
-          {
-            id: "spot-3",
-            name: "Quiet Corner",
-            description: "A slightly tucked-away spot to reflect or meet someone.",
-            lat: lat - 0.0005,
-            lng: lng - 0.0003,
-          },
-        ];
-
-        setStops(demoStops);
-
-        // Start watching movement for proximity triggers
-        await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Balanced,
-            timeInterval: 4000,
-            distanceInterval: 5,
-          },
-          (update) => {
-            const cur = {
-              lat: update.coords.latitude,
-              lng: update.coords.longitude,
-            };
-            setUserLocation(cur);
-            handleProximity(cur, demoStops);
-          }
-        );
-      } catch (err) {
-        console.warn("Location error", err);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (Platform.OS !== "web") {
+      requestPermission();
+    }
   }, []);
 
-  // 🔹 2) Handle proximity → auto Tori message
-  function handleProximity(current: { lat: number; lng: number }, stopsList: Stop[]) {
-    if (!current || !stopsList.length || loading) return;
+  // ... (handleSend, askTori, pushToriMessage, speakTori functions are unchanged)
+   async function handleSend() {
+    const text = input.trim();
+    if (!text || loading) return;
 
-    const THRESHOLD = 40; // meters
-    const newlyReached: Stop[] = [];
-
-    for (const stop of stopsList) {
-      if (visitedStops[stop.id]) continue;
-      const d = distanceMeters(current, { lat: stop.lat, lng: stop.lng });
-      if (d <= THRESHOLD) newlyReached.push(stop);
-    }
-
-    if (!newlyReached.length) return;
-
-    setVisitedStops((prev) => {
-      const copy = { ...prev };
-      newlyReached.forEach((s) => {
-        copy[s.id] = true;
-      });
-      return copy;
-    });
-
-    // Have Tori greet at the first newly reached stop
-    const stop = newlyReached[0];
-    const autoPrompt = `I'm at "${stop.name}". ${stop.description} Greet me as Tori and suggest one short thing to notice or do here.`;
-    askTori(autoPrompt, { isAuto: true });
+    setInput("");
+    setMessages((prev) => [...prev, { from: "user", text }]);
+    await askTori(text);
   }
 
-  // 🔹 3) Call Gemini (Tori's brain)
-  async function askTori(message: string, opts?: { isAuto?: boolean }) {
-    const userText = (message || input).trim();
-    if (!userText || loading) return;
-
-    if (!GEMINI_API_KEY) {
-      setToriReply("I’m not wired up yet—missing GEMINI_API_KEY.");
+  async function askTori(userText: string) {
+     if (!GEMINI_API_KEY) {
+      const fallback =
+        "I’m almost ready, but my AI brain isn’t wired up yet (missing GEMINI_API_KEY).";
+      pushToriMessage(fallback);
+      await speakTori(fallback);
       return;
     }
 
     setLoading(true);
-    setInput("");
-
-    if (!opts?.isAuto) {
-      setLastUser(userText);
-    } else {
-      setLastUser(null); // keep focus on Tori for auto events
-    }
 
     const systemInstruction = `
-You are Tori, a shared, location-aware tour companion.
-Tone: warm, playful, concise (1–3 sentences).
-You help people notice cool details about where they are and feel more connected.
-Assume multiple people may be listening; address "you all" sometimes.
-Avoid heavy topics; keep it light and campus/city friendly.
+You are Tori, a communal, friendly AI tour companion.
+You are not a personal assistant; you are a shared presence people can "bump into".
+Tone: warm, playful, concise (1–3 sentences), vivid.
+You help people explore spaces, notice interesting details, feel welcome, and imagine ways to connect.
+You can be used on campuses, cities, events—never locked to one school.
+Assume others might also be listening/nearby; occasionally use inclusive language ("you all", "anyone nearby").
+Avoid heavy topics; keep it light, supportive, curious.
 `.trim();
 
     try {
@@ -203,7 +112,9 @@ Avoid heavy topics; keep it light and campus/city friendly.
                 parts: [
                   { text: systemInstruction },
                   { text: `User: ${userText}` },
-                  { text: "Respond as Tori in one short, vivid reply." },
+                  {
+                    text: "Respond as Tori in one short, friendly message.",
+                  },
                 ],
               },
             ],
@@ -212,193 +123,234 @@ Avoid heavy topics; keep it light and campus/city friendly.
       );
 
       if (!res.ok) {
-        console.warn("Gemini error:", await res.text());
-        setToriReply("I got a bit scrambled—can you try that again?");
+        const errorText = await res.text();
+        console.warn("Gemini error:", errorText);
+        const msg =
+          "I got a little scrambled there—mind asking that one more time?";
+        pushToriMessage(msg);
+        await speakTori(msg);
         return;
       }
 
       const data = await res.json();
-      const text =
+      const reply =
         data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
-        "I’m here with you; try asking that one more time.";
+        "I’m here with you—try that once more and I’ll do better.";
 
-      setToriReply(text);
-      speakTori(text);
+      pushToriMessage(reply);
+      await speakTori(reply);
     } catch (err) {
       console.warn("Tori error:", err);
-      setToriReply("Something glitched on my side—mind trying once more?");
+      const msg =
+        "Something glitched on my side—can you try again in a moment?";
+      pushToriMessage(msg);
+      await speakTori(msg);
     } finally {
       setLoading(false);
     }
   }
 
-  // 🔹 4) Tori's voice (Expo Speech for now)
-  function speakTori(text: string) {
-    // Simple, works on iOS/Android via system voices.
+  function pushToriMessage(text: string) {
+    setMessages((prev) => [...prev, { from: "tori", text }]);
+  }
+
+  async function speakTori(text: string) {
     Speech.stop();
-    Speech.speak(text, {
-      rate: 1.0,
-      pitch: 1.02,
-    });
+    if (ELEVEN_API_KEY && ELEVEN_VOICE_ID) {
+      try {
+        const ttsRes = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE_ID}`,
+          {
+            method: "POST",
+            headers: {
+              "xi-api-key": ELEVEN_API_KEY,
+              "Content-Type": "application/json",
+              Accept: "audio/mpeg",
+            },
+            body: JSON.stringify({
+              text,
+              model_id: "eleven_multilingual_v2",
+              voice_settings: {
+                stability: 0.4,
+                similarity_boost: 0.85,
+                style: 0.4,
+                use_speaker_boost: true,
+              },
+            }),
+          }
+        );
+
+        if (!ttsRes.ok) {
+          console.warn(
+            "ElevenLabs TTS failed:",
+            await ttsRes.text()
+          );
+          Speech.speak(text, { rate: 3.0, pitch: 1.02 });
+          return;
+        }
+
+        const arrayBuf = await ttsRes.arrayBuffer();
+        const base64 = arrayBufferToBase64(arrayBuf);
+        const uri = `data:audio/mpeg;base64,${base64}`;
+
+        const { sound } = await Audio.Sound.createAsync(
+          { uri },
+          { shouldPlay: true }
+        );
+        return;
+      } catch (err) {
+        console.warn("ElevenLabs error:", err);
+      }
+    }
+    Speech.speak(text, { rate: 1.0, pitch: 1.02 });
+  }
+
+  if (!permission) {
+    return <View />;
+  }
+
+  if (!permission.granted) {
+    // ... (permission container is unchanged)
+    return (
+      <View style={styles.permissionContainer}>
+        <Text style={{ textAlign: "center", color: "white" }}>
+          We need your permission to show the camera
+        </Text>
+        <TouchableOpacity onPress={requestPermission} style={styles.sendBtn}>
+          <Text style={styles.sendLabel}>Grant Permission</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Image
-          source={require("../../assets/tori_logo.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <View>
-          <Text style={styles.title}>Tori</Text>
-          <Text style={styles.subtitle}>Shared AR Tour Guide</Text>
+    <View style={{ flex: 1 }}>
+      <CameraView style={StyleSheet.absoluteFillObject} facing="back" />
+
+      <SafeAreaView style={styles.container}>
+        {/* Header (unchanged) */}
+        <View style={styles.header}>
+            <Image
+                source={require("../../assets/tori_logo.png")}
+                style={styles.logo}
+                resizeMode="contain"
+            />
+            <View>
+                <Text style={styles.title}>Tori</Text>
+                <Text style={styles.subtitle}>Shared AI Tour Companion</Text>
+            </View>
         </View>
-      </View>
 
-      {/* Body */}
-      <ScrollView
-        style={styles.body}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      >
-        <Text style={styles.helper}>
-          Tori is one guide that everyone can bump into. She reacts to where you
-          are, suggests things to notice, and can be shared across devices.
-        </Text>
+        {/* Body / Messages */}
+        <ScrollView
+          style={styles.messagesContainer}
+          contentContainerStyle={{ paddingBottom: 16 }}
+        >
+          {/* ----- ALL INFO BOXES REMOVED FROM HERE ----- */}
 
-        {/* Itinerary card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Your location-aware path (demo):</Text>
-          {!userLocation && (
-            <Text style={styles.cardText}>
-              Waiting for location or using a demo path…
-            </Text>
-          )}
-          {stops.map((s) => (
-            <Text key={s.id} style={styles.cardText}>
-              • {s.name}{" "}
-              {visitedStops[s.id] ? "✅ (Tori greeted here)" : ""}
-            </Text>
+          {/* MODIFIED: Use .slice(-2) to get only the last two messages */}
+          {messages.slice(-2).map((m, i) => (
+            <View
+              key={i}
+              style={[
+                styles.bubble,
+                m.from === "user"
+                  ? styles.userBubble
+                  : styles.toriBubble,
+              ]}
+            >
+              <Text style={styles.bubbleLabel}>
+                {m.from === "user" ? "You" : "Tori"}
+              </Text>
+              <Text style={styles.bubbleText}>{m.text}</Text>
+            </View>
           ))}
-          <Text style={[styles.cardText, { marginTop: 4 }]}>
-            As you move near these spots, Tori can automatically greet you and
-            suggest something to explore.
-          </Text>
-        </View>
 
-        {/* Chat history */}
-        <View style={styles.chatBox}>
-          {lastUser && (
-            <View style={[styles.bubble, styles.bubbleUser]}>
-              <Text style={styles.bubbleLabel}>You</Text>
-              <Text style={styles.bubbleText}>{lastUser}</Text>
-            </View>
-          )}
-          {toriReply && (
-            <View style={[styles.bubble, styles.bubbleTori]}>
-              <Text style={styles.bubbleLabel}>Tori</Text>
-              <Text style={styles.bubbleText}>{toriReply}</Text>
-            </View>
-          )}
           {loading && (
-            <View style={[styles.bubble, styles.bubbleTori]}>
+            <View style={[styles.bubble, styles.toriBubble]}>
               <Text style={styles.bubbleLabel}>Tori</Text>
               <Text style={styles.bubbleText}>Thinking with you…</Text>
             </View>
           )}
-        </View>
-      </ScrollView>
+        </ScrollView>
 
-      {/* Input row */}
-      <View style={styles.inputRow}>
-        <TextInput
-          value={input}
-          onChangeText={setInput}
-          placeholder="Ask Tori something about this place..."
-          placeholderTextColor="#6B7280"
-          style={styles.input}
-          editable={!loading}
-          onSubmitEditing={() => askTori(input)}
-        />
-        <TouchableOpacity
-          onPress={() => askTori(input)}
-          disabled={loading}
-          style={[styles.sendBtn, loading && styles.sendBtnDisabled]}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.sendLabel}>Send</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        {/* Input (unchanged) */}
+        <View style={styles.inputRow}>
+            <TextInput
+                value={input}
+                onChangeText={setInput}
+                placeholder="Ask Tori something..."
+                placeholderTextColor="#6B7280"
+                style={styles.input}
+                editable={!loading}
+                onSubmitEditing={handleSend}
+            />
+            <TouchableOpacity
+                onPress={handleSend}
+                disabled={loading}
+                style={[styles.sendBtn, loading && styles.sendBtnDisabled]}
+            >
+                {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                <Text style={styles.sendLabel}>Send</Text>
+                )}
+            </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#020817" },
+  // ... (All styles are unchanged, except for the `intro` style, which is no longer used but can be safely removed)
+  container: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  permissionContainer: {
+    flex: 1,
+    backgroundColor: "#020817",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 20,
+  },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingTop: 14,
     paddingHorizontal: 16,
     paddingBottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
   },
   logo: { width: 40, height: 40, marginRight: 10 },
-  title: { fontSize: 20, fontWeight: "700", color: "#E5E7EB" },
-  subtitle: { fontSize: 12, color: "#9CA3AF" },
-  body: { flex: 1, paddingHorizontal: 16, marginTop: 6 },
-  helper: {
-    fontSize: 12,
-    color: "#9CA3AF",
-    marginBottom: 10,
-  },
-  card: {
-    backgroundColor: "#020817",
-    borderRadius: 16,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#111827",
-    marginBottom: 12,
-  },
-  cardTitle: {
-    fontSize: 13,
-    fontWeight: "600",
+  title: {
+    fontSize: 20,
+    fontWeight: "700",
     color: "#E5E7EB",
-    marginBottom: 4,
   },
-  cardText: {
-    fontSize: 11,
-    color: "#9CA3AF",
-  },
-  chatBox: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#111827",
-    padding: 10,
+  subtitle: { fontSize: 12, color: "#9CA3AF" },
+  messagesContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
     marginTop: 4,
-    gap: 6,
-    minHeight: 70,
-    backgroundColor: "#020817",
   },
   bubble: {
     padding: 8,
     borderRadius: 12,
+    marginBottom: 6,
     maxWidth: "85%",
   },
-  bubbleUser: {
+  userBubble: {
     alignSelf: "flex-end",
-    backgroundColor: "#111827",
+    backgroundColor: "rgba(37, 99, 235, 0.8)", 
   },
-  bubbleTori: {
+  toriBubble: {
     alignSelf: "flex-start",
-    backgroundColor: "#111827",
+    backgroundColor: "rgba(55, 65, 81, 0.8)", 
   },
   bubbleLabel: {
     fontSize: 9,
-    color: "#9CA3AF",
+    color: "#E5E7EB", 
     marginBottom: 2,
   },
   bubbleText: {
@@ -413,14 +365,14 @@ const styles = StyleSheet.create({
     gap: 8,
     borderTopWidth: 1,
     borderTopColor: "#111827",
-    backgroundColor: "#020817",
+    backgroundColor: "rgba(2, 8, 23, 0.8)",
   },
   input: {
     flex: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: "#020817",
+    backgroundColor: "rgba(2, 8, 23, 0.5)",
     borderWidth: 1,
     borderColor: "#374151",
     color: "#E5E7EB",
@@ -441,17 +393,3 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
-
-// import { View, Text, StyleSheet } from "react-native";
-// export default function TourScreen() {
-//   return (
-//     <View style={styles.container}>
-//       <Text style={styles.title}>Tour Screen A</Text>
-//       <Text>Placeholder for camera/AR city view.</Text>
-//     </View>
-//   ); 
-// }
-// const styles = StyleSheet.create({
-//   container: { flex: 1, padding: 20, gap: 8, justifyContent: "center" },
-//   title: { fontSize: 20, fontWeight: "bold" }
-// });
