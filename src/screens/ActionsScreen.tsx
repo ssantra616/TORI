@@ -22,6 +22,10 @@ export default function ActionsScreen({ navigation }: Props) {
           <Text style={styles.primaryText}>Start Tour</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.secondary} onPress={() => navigation.navigate("ToriMain")}>
+          <Text style={styles.secondaryText}>See Tori</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.secondary} onPress={() => navigation.navigate("People")}>
           <Text style={styles.secondaryText}>Find People Nearby</Text>
         </TouchableOpacity>

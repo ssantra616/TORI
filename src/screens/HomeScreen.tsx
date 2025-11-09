@@ -9,9 +9,13 @@ export default function HomeScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.actions}>
-        <Text style={styles.header}>Hey! Welcome to Tori. How can we help you?</Text>
+        <Text style={styles.header}>Heyyy! Welcome to Tori. How can we help you?</Text>
         <TouchableOpacity style={styles.primary} onPress={() => navigation.navigate("Tour")}>
           <Text style={styles.primaryText}>Start Tour</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.secondary} onPress={() => navigation.navigate("ToriMain")}>
+          <Text style={styles.secondaryText}>See Tori</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondary} onPress={() => navigation.navigate("People")}>
