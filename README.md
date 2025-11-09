@@ -1,4 +1,4 @@
-# 🐝 TORI — The AI-Powered VR Tour Companion
+# 🦾 TORI — The AI-Powered VR Tour Companion
 
 Tori is an **AI + VR-powered virtual tour guide** that helps users explore real-world locations through a friendly, immersive experience. Designed for both **individuals and campuses**, Tori combines interactive maps, conversational AI, and a 3D VR assistant to make navigation smarter and more human.
 
