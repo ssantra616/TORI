@@ -58,5 +58,13 @@ crashlytics-build.properties
 [Aa]ssets/[Ss]treamingAssets/aa.meta
 [Aa]ssets/[Ss]treamingAssets/aa/*
 
+# Node.js / Expo
+node_modules
+.expo
+.expo-shared
+dist
+npm-debug.log*
+yarn-*.log*
+
 # macOS
 .DS_Store
