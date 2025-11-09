@@ -19,8 +19,8 @@ export default function SplashScreen() {
       <StatusBar barStyle="light-content" />
       <View style={styles.circle}>
          <Image
-       source={require("../../assets/tori_logo.png")}
-       style={styles.logo}
+          source={require("../../assets/tori_logo.png")}
+          style={styles.logo}
        />
       </View>
     </SafeAreaView>
