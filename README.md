@@ -35,6 +35,64 @@ Natural voice support using Expo Speech + ElevenLabs for lifelike narration.
 Save favorite routes or points of interest and plan trips directly in the app.
 
 ---
+🔍 Design Process & UX Decisions
+Customer Problem
+
+Navigating unfamiliar spaces (new campuses, cities, events) is cognitively demanding. Existing map tools are visually dense, non-conversational, and require constant attention switching between the environment and the screen. Users need guidance that is intuitive, contextual, and low-friction.
+
+Target Users
+
+First-time visitors to campuses or large venues
+
+Students and travelers navigating unfamiliar environments
+
+Users who benefit from hands-free or conversational guidance
+
+Design Goals
+
+Reduce cognitive load while navigating unfamiliar spaces
+
+Make guidance feel human and supportive, not transactional
+
+Balance immersive visuals with clear directional clarity
+
+Enable users to understand where they are without constant map interpretation
+
+Early Exploration & Iteration
+
+Initial concepts focused on a traditional 2D navigation interface with overlays. Early testing revealed this required too much visual attention and broke immersion. We explored conversational guidance combined with spatial visualization to reduce on-screen complexity.
+
+We iterated toward:
+
+A conversational AI layer to answer questions naturally
+
+A 3D VR companion to visually reinforce navigation cues
+
+Context awareness to adapt guidance based on user location and intent
+
+Final UX Decisions
+
+Used conversational AI to allow users to ask questions naturally instead of navigating menus
+
+Combined real-time location data with a visual VR assistant to reinforce spatial understanding
+
+Prioritized clarity over visual density by limiting on-screen elements during navigation
+
+Designed for cross-platform usability to support both mobile and immersive experiences
+
+Outcome
+
+The final prototype demonstrates how AI-assisted, immersive navigation can reduce friction, improve orientation, and create a more human-centered navigation experience. TORI serves as a proof-of-concept for how conversational interfaces and spatial design can work together to guide users effectively.
+
+🔗 Implementation
+
+React Native + Expo for cross-platform UX
+
+Unity for immersive VR visualization
+
+Google Maps & Expo Location for real-time positioning
+
+Gemini AI (API) for conversational assistance
 
 ## 🛠️ Tech Stack
 
